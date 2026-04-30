@@ -1,3 +1,5 @@
+import type { PendingEffect } from "./effects/effectTypes";
+
 export type PlayerId = "player" | "opponent";
 
 export type Phase = "refresh" | "draw" | "don" | "main" | "end" | "gameOver";
@@ -72,6 +74,8 @@ export type CardInstance = {
   faceUp: boolean;
   attachedDonIds: string[];
   attachedDon: CardInstance[];
+  tempCostModifier: number;
+  tempPowerModifier: number;
   playedTurn?: number;
   life?: number;
 };
@@ -96,7 +100,9 @@ export type GameState = {
   turnNumber: number;
   log: string[];
   pendingBattle?: PendingBattle;
+  pendingEffect?: PendingEffect;
   pendingLifeTrigger?: PendingLifeTrigger;
   pendingLeaderDamage?: PendingLeaderDamage;
+  usedThisTurn: string[];
   winner?: PlayerId;
 };

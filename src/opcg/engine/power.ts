@@ -9,9 +9,15 @@ export function getEffectivePower(card: CardInstance, ownerIsTurnPlayer: boolean
     return 0;
   }
 
+  const modifiedPower = Math.max(0, card.power + card.tempPowerModifier);
+
   if (!ownerIsTurnPlayer) {
-    return card.power;
+    return modifiedPower;
   }
 
-  return card.power + getAttachedDonPower(card);
+  return modifiedPower + getAttachedDonPower(card);
+}
+
+export function getEffectiveCost(card: CardInstance): number {
+  return Math.max(0, (card.cost ?? 0) + card.tempCostModifier);
 }

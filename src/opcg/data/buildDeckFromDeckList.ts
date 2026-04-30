@@ -31,6 +31,8 @@ function createInstanceFromCardData(card: NormalizedCardData, owner: PlayerId, i
     faceUp: false,
     attachedDonIds: [],
     attachedDon: [],
+    tempCostModifier: 0,
+    tempPowerModifier: 0,
     life: card.life,
   };
 }

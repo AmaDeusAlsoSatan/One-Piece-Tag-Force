@@ -96,5 +96,6 @@ export function createInitialGameState(
         ? "Mesa de duelo criada com decks reais locais."
         : "Mesa de duelo criada com decks mockados.",
     ],
+    usedThisTurn: [],
   };
 }

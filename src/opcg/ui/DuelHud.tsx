@@ -1,11 +1,16 @@
 import type { GameState, Phase, PlayerId } from "../engine/types";
 
 type DuelHudProps = {
+  canActivateLeaderEffect?: boolean;
   controlledPlayer: PlayerId;
   gameState: GameState;
+  onActivateLeaderEffect: () => void;
   onAdvancePhase: () => void;
   onActivateLifeTrigger: () => void;
   onAddTriggerToHand: () => void;
+  onCancelEffect: () => void;
+  onEffectModeSelect: (modeId: string) => void;
+  onEffectNoTarget: () => void;
   onPassBlock: () => void;
   onPassCounter: () => void;
   onResolveBattle: () => void;
@@ -32,15 +37,24 @@ const battleStepLabels = {
 };
 
 export function DuelHud({
+  canActivateLeaderEffect = false,
   controlledPlayer,
   gameState,
+  onActivateLeaderEffect,
   onActivateLifeTrigger,
   onAddTriggerToHand,
   onAdvancePhase,
+  onCancelEffect,
+  onEffectModeSelect,
+  onEffectNoTarget,
   onPassBlock,
   onPassCounter,
   onResolveBattle,
 }: DuelHudProps) {
+  const pendingEffectNeedsMode = Boolean(
+    gameState.pendingEffect?.modes?.length && !gameState.pendingEffect.selectedModeId,
+  );
+
   return (
     <aside className="duel-hud">
       <div className="hud-panel">
@@ -86,6 +100,40 @@ export function DuelHud({
           <strong>{gameState.pendingLeaderDamage.remainingDamage}</strong>
         </div>
       )}
+      {gameState.pendingEffect && (
+        <section className="pending-effect-panel">
+          <span>Efeito pendente</span>
+          <strong>{gameState.pendingEffect.sourceName}</strong>
+          <small>{gameState.pendingEffect.prompt}</small>
+          {pendingEffectNeedsMode && (
+            <div className="effect-actions">
+              {gameState.pendingEffect.modes?.map((mode) => (
+                <button
+                  className="effect-button"
+                  key={mode.id}
+                  type="button"
+                  onClick={() => onEffectModeSelect(mode.id)}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {!pendingEffectNeedsMode && (
+            <>
+              <small>Alvos validos: {gameState.pendingEffect.validTargets.length}</small>
+              {gameState.pendingEffect.optional && (
+                <button className="effect-button" type="button" onClick={onEffectNoTarget}>
+                  Nao escolher alvo
+                </button>
+              )}
+            </>
+          )}
+          <button className="effect-button cancel-effect-button" type="button" onClick={onCancelEffect}>
+            Cancelar
+          </button>
+        </section>
+      )}
       {gameState.pendingBattle && (
         <section className="pending-battle-panel">
           <span>Batalha em andamento</span>
@@ -112,9 +160,14 @@ export function DuelHud({
           )}
         </section>
       )}
+      {canActivateLeaderEffect && (
+        <button className="effect-activate-button" type="button" onClick={onActivateLeaderEffect}>
+          Ativar efeito do Leader
+        </button>
+      )}
       <button
         className="advance-button"
-        disabled={gameState.phase === "gameOver" || Boolean(gameState.pendingLifeTrigger)}
+        disabled={gameState.phase === "gameOver" || Boolean(gameState.pendingLifeTrigger || gameState.pendingEffect)}
         type="button"
         onClick={onAdvancePhase}
       >

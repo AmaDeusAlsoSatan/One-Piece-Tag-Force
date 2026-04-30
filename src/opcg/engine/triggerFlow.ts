@@ -26,6 +26,8 @@ function prepareTriggerCard(card: CardInstance): CardInstance {
     faceUp: true,
     attachedDon: [],
     attachedDonIds: [],
+    tempCostModifier: 0,
+    tempPowerModifier: 0,
   };
 }
 

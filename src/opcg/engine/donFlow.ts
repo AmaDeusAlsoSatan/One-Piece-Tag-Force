@@ -27,6 +27,8 @@ export function applyRefreshPhase(gameState: GameState): GameState {
     faceUp: true,
     attachedDon: [],
     attachedDonIds: [],
+    tempCostModifier: 0,
+    tempPowerModifier: 0,
   }));
   const refreshedPlayer: PlayerState = {
     ...playerState,

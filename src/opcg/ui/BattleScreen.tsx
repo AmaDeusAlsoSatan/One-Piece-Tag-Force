@@ -8,6 +8,8 @@ import type {
   PlayerId,
 } from "../engine/types";
 import { createInitialGameState } from "../engine/createInitialGameState";
+import type { CardRef } from "../engine/effects/effectTypes";
+import { hasCardEffect } from "../engine/effects/effectRegistry";
 import { gameReducer } from "../engine/gameReducer";
 import { canPayCost } from "../engine/validators";
 import { CardInspector } from "./CardInspector";
@@ -27,6 +29,10 @@ function getOpponentPlayer(player: PlayerId): PlayerId {
 function getControlledPlayer(gameState: GameState): PlayerId {
   if (gameState.pendingLifeTrigger) {
     return gameState.pendingLifeTrigger.player;
+  }
+
+  if (gameState.pendingEffect) {
+    return gameState.pendingEffect.controller;
   }
 
   if (
@@ -56,7 +62,7 @@ export function BattleScreen() {
     setSelectedHandCardId(undefined);
     setSelectedDonId(undefined);
     setSelectedAttacker(undefined);
-  }, [controlledPlayer, gameState.phase]);
+  }, [controlledPlayer, gameState.phase, gameState.pendingEffect?.effectId, gameState.pendingEffect?.selectedModeId]);
 
   function getCounterCandidateIds(playerId: PlayerId) {
     if (
@@ -107,11 +113,12 @@ export function BattleScreen() {
       gameState.phase === "main" &&
       !gameState.pendingBattle
       && !gameState.pendingLifeTrigger
+      && !gameState.pendingEffect
     );
   }
 
   function handleHandCardClick(card: CardInstance) {
-    if (gameState.pendingBattle || gameState.pendingLifeTrigger) {
+    if (gameState.pendingBattle || gameState.pendingLifeTrigger || gameState.pendingEffect) {
       return;
     }
 
@@ -239,6 +246,27 @@ export function BattleScreen() {
     });
   }
 
+  function handleEffectTargetClick(target: CardRef) {
+    const pendingEffect = gameState.pendingEffect;
+
+    if (!pendingEffect) {
+      return;
+    }
+
+    setSelectedHandCardId(undefined);
+    setSelectedDonId(undefined);
+    setSelectedAttacker(undefined);
+    dispatch({
+      type: "SELECT_EFFECT_TARGET",
+      player: pendingEffect.controller,
+      target,
+    });
+  }
+
+  const canActivateLeaderEffect =
+    canUseMainPhaseActions(controlledPlayer) &&
+    hasCardEffect(gameState.players[controlledPlayer].leader.cardId, "activateMain");
+
   function renderBoard(playerId: PlayerId, isOpponent = false) {
     const isControlledBoard = controlledPlayer === playerId;
     const isAttackTargetBoard = selectedAttacker && attackTargetPlayer === playerId;
@@ -247,6 +275,7 @@ export function BattleScreen() {
     return (
       <PlayerBoard
         blockerCandidateSlotIndexes={getBlockerCandidateSlotIndexes(playerId)}
+        effectTargetRefs={gameState.pendingEffect?.validTargets}
         isOpponent={isOpponent}
         isTurnPlayer={gameState.turnPlayer === playerId}
         onAttachTargetClick={isControlledBoard && selectedDonId ? handleAttachTargetClick : undefined}
@@ -262,6 +291,7 @@ export function BattleScreen() {
           isControlledBoard && selectedHandCard?.type === "character" ? handleCharacterSlotClick : undefined
         }
         onCostDonClick={isControlledBoard && canUseBoardMainActions ? handleCostDonClick : undefined}
+        onEffectTargetClick={gameState.pendingEffect ? handleEffectTargetClick : undefined}
         playerId={playerId}
         playerState={gameState.players[playerId]}
         selectedAttacker={isControlledBoard ? selectedAttacker : undefined}
@@ -289,7 +319,19 @@ export function BattleScreen() {
       </section>
       <DuelHud
         controlledPlayer={controlledPlayer}
+        canActivateLeaderEffect={canActivateLeaderEffect}
         gameState={gameState}
+        onActivateLeaderEffect={() => {
+          setSelectedHandCardId(undefined);
+          setSelectedDonId(undefined);
+          setSelectedAttacker(undefined);
+          dispatch({
+            type: "ACTIVATE_CARD_EFFECT",
+            player: controlledPlayer,
+            source: { zone: "leader", player: controlledPlayer },
+            timing: "activateMain",
+          });
+        }}
         onAdvancePhase={() => {
           setSelectedHandCardId(undefined);
           setSelectedDonId(undefined);
@@ -331,6 +373,42 @@ export function BattleScreen() {
             type: "PASS_COUNTER",
             player: controlledPlayer,
           });
+        }}
+        onCancelEffect={() => {
+          const pendingEffect = gameState.pendingEffect;
+
+          if (!pendingEffect) {
+            return;
+          }
+
+          setSelectedHandCardId(undefined);
+          setSelectedDonId(undefined);
+          setSelectedAttacker(undefined);
+          dispatch({ type: "CANCEL_PENDING_EFFECT", player: pendingEffect.controller });
+        }}
+        onEffectModeSelect={(modeId) => {
+          const pendingEffect = gameState.pendingEffect;
+
+          if (!pendingEffect) {
+            return;
+          }
+
+          setSelectedHandCardId(undefined);
+          setSelectedDonId(undefined);
+          setSelectedAttacker(undefined);
+          dispatch({ type: "SELECT_EFFECT_TARGET", player: pendingEffect.controller, modeId });
+        }}
+        onEffectNoTarget={() => {
+          const pendingEffect = gameState.pendingEffect;
+
+          if (!pendingEffect) {
+            return;
+          }
+
+          setSelectedHandCardId(undefined);
+          setSelectedDonId(undefined);
+          setSelectedAttacker(undefined);
+          dispatch({ type: "SELECT_EFFECT_TARGET", player: pendingEffect.controller });
         }}
         onResolveBattle={() => {
           setSelectedHandCardId(undefined);

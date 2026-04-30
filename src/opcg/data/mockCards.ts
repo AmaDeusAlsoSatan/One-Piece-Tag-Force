@@ -178,6 +178,8 @@ export function createCardInstance(
     faceUp: true,
     attachedDonIds: [],
     attachedDon: [],
+    tempCostModifier: 0,
+    tempPowerModifier: 0,
     life: definition.life,
     ...overrides,
   };

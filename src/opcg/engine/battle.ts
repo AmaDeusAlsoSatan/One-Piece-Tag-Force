@@ -1,6 +1,7 @@
 import { getEffectivePower } from "./power";
 import { payCost } from "./payCost";
 import { processNextLeaderDamage } from "./damageFlow";
+import { koCharacter } from "./effects/effectHelpers";
 import type { AttackSource, AttackTarget, CardInstance, GameState, PlayerId, PlayerState } from "./types";
 import {
   getOpponent,
@@ -19,23 +20,6 @@ function updatePlayer(gameState: GameState, player: PlayerId, playerState: Playe
     players: {
       ...gameState.players,
       [player]: playerState,
-    },
-  };
-}
-
-function updatePlayers(
-  gameState: GameState,
-  player: PlayerId,
-  playerState: PlayerState,
-  opponent: PlayerId,
-  opponentState: PlayerState,
-): GameState {
-  return {
-    ...gameState,
-    players: {
-      ...gameState.players,
-      [player]: playerState,
-      [opponent]: opponentState,
     },
   };
 }
@@ -87,25 +71,6 @@ function restAttacker(playerState: PlayerState, source: AttackSource): PlayerSta
   };
 }
 
-function returnAttachedDonRested(card: CardInstance): CardInstance[] {
-  return card.attachedDon.map((don) => ({
-    ...don,
-    active: false,
-    faceUp: true,
-    attachedDon: [],
-    attachedDonIds: [],
-  }));
-}
-
-function sendCharacterToTrash(card: CardInstance): CardInstance {
-  return {
-    ...card,
-    active: true,
-    attachedDon: [],
-    attachedDonIds: [],
-  };
-}
-
 function sendCounterCardToTrash(card: CardInstance): CardInstance {
   return {
     ...card,
@@ -113,6 +78,8 @@ function sendCounterCardToTrash(card: CardInstance): CardInstance {
     faceUp: true,
     attachedDon: [],
     attachedDonIds: [],
+    tempCostModifier: 0,
+    tempPowerModifier: 0,
   };
 }
 
@@ -397,24 +364,18 @@ export function resolvePendingBattle(gameState: GameState): GameState {
     return processNextLeaderDamage(pendingDamageState);
   }
 
-  const characterArea = [...opponentState.characterArea];
-  const knockedOutCharacter = characterArea[target.slotIndex];
+  const knockedOutCharacter = opponentState.characterArea[target.slotIndex];
 
   if (!knockedOutCharacter) {
     return withLog(gameStateWithoutBattle, "O alvo do ataque não existe mais.");
   }
 
-  characterArea[target.slotIndex] = null;
-  const returnedDon = returnAttachedDonRested(knockedOutCharacter);
-  const damagedOpponent: PlayerState = {
-    ...opponentState,
-    characterArea,
-    costArea: [...opponentState.costArea, ...returnedDon],
-    trash: [sendCharacterToTrash(knockedOutCharacter), ...opponentState.trash],
-  };
-
   return withLog(
-    updatePlayers(gameStateWithoutBattle, attackerPlayer, playerState, defenderPlayer, damagedOpponent),
+    koCharacter(gameStateWithoutBattle, {
+      zone: "character",
+      player: defenderPlayer,
+      slotIndex: target.slotIndex,
+    }),
     `${getPlayerLabel(attackerPlayer)} deu K.O. em ${knockedOutCharacter.name}.`,
   );
 }

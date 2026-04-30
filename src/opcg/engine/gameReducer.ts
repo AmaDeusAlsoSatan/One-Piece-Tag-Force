@@ -10,6 +10,13 @@ import {
   useEventCounter,
 } from "./battle";
 import { processNextLeaderDamage } from "./damageFlow";
+import { hasCardEffect } from "./effects/effectRegistry";
+import {
+  activateCardEffect,
+  cancelPendingEffect,
+  selectEffectTarget,
+  triggerCardEffects,
+} from "./effects/resolvePendingEffect";
 import { payCost } from "./payCost";
 import { activateLifeTrigger, addTriggerCardToHand } from "./triggerFlow";
 import { advancePhase } from "./turnFlow";
@@ -43,6 +50,18 @@ function removeFromHand(playerState: PlayerState, cardInstanceId: string): CardI
   return playerState.hand.filter((card) => card.instanceId !== cardInstanceId);
 }
 
+function resetCardForTrash(card: CardInstance): CardInstance {
+  return {
+    ...card,
+    active: true,
+    faceUp: true,
+    attachedDon: [],
+    attachedDonIds: [],
+    tempCostModifier: 0,
+    tempPowerModifier: 0,
+  };
+}
+
 function playCharacter(
   gameState: GameState,
   player: PlayerId,
@@ -60,7 +79,7 @@ function playCharacter(
   const cost = card.cost ?? 0;
 
   if (!canPayCost(playerState, cost)) {
-    return withLog(gameState, `${getPlayerLabel(player)} não tem DON!! ativo suficiente para jogar ${card.name}.`);
+    return withLog(gameState, `${getPlayerLabel(player)} nao tem DON!! ativo suficiente para jogar ${card.name}.`);
   }
 
   const paidPlayer = payCost(playerState, cost);
@@ -70,6 +89,8 @@ function playCharacter(
     active: true,
     faceUp: true,
     playedTurn: gameState.turnNumber,
+    tempCostModifier: 0,
+    tempPowerModifier: 0,
   };
 
   const updatedPlayer: PlayerState = {
@@ -78,10 +99,12 @@ function playCharacter(
     characterArea,
   };
 
-  return withLog(
+  const playedState = withLog(
     updatePlayer(gameState, player, updatedPlayer),
     `${getPlayerLabel(player)} jogou ${card.name} no slot C${slotIndex + 1}.`,
   );
+
+  return triggerCardEffects(playedState, { zone: "character", player, slotIndex }, player, "onPlay");
 }
 
 function playStage(
@@ -93,7 +116,7 @@ function playStage(
   const cost = card.cost ?? 0;
 
   if (!canPayCost(playerState, cost)) {
-    return withLog(gameState, `${getPlayerLabel(player)} não tem DON!! ativo suficiente para jogar ${card.name}.`);
+    return withLog(gameState, `${getPlayerLabel(player)} nao tem DON!! ativo suficiente para jogar ${card.name}.`);
   }
 
   const paidPlayer = payCost(playerState, cost);
@@ -106,8 +129,10 @@ function playStage(
       active: true,
       faceUp: true,
       playedTurn: gameState.turnNumber,
+      tempCostModifier: 0,
+      tempPowerModifier: 0,
     },
-    trash: replacedStage ? [replacedStage, ...paidPlayer.trash] : paidPlayer.trash,
+    trash: replacedStage ? [resetCardForTrash(replacedStage), ...paidPlayer.trash] : paidPlayer.trash,
   };
 
   const replaceMessage = replacedStage ? `, substituindo ${replacedStage.name}` : "";
@@ -127,20 +152,28 @@ function playEvent(
   const cost = card.cost ?? 0;
 
   if (!canPayCost(playerState, cost)) {
-    return withLog(gameState, `${getPlayerLabel(player)} não tem DON!! ativo suficiente para usar ${card.name}.`);
+    return withLog(gameState, `${getPlayerLabel(player)} nao tem DON!! ativo suficiente para usar ${card.name}.`);
   }
 
   const paidPlayer = payCost(playerState, cost);
   const updatedPlayer: PlayerState = {
     ...paidPlayer,
     hand: removeFromHand(paidPlayer, card.instanceId),
-    trash: [{ ...card, active: true, faceUp: true }, ...paidPlayer.trash],
+    trash: [resetCardForTrash(card), ...paidPlayer.trash],
   };
 
-  return withLog(
-    updatePlayer(gameState, player, updatedPlayer),
-    `${getPlayerLabel(player)} usou ${card.name}, mas o efeito ainda não foi implementado.`,
-  );
+  const playedState = withLog(updatePlayer(gameState, player, updatedPlayer), `${getPlayerLabel(player)} usou ${card.name}.`);
+
+  if (hasCardEffect(card.cardId, "eventMain")) {
+    return triggerCardEffects(
+      playedState,
+      { zone: "trash", player, cardInstanceId: card.instanceId },
+      player,
+      "eventMain",
+    );
+  }
+
+  return withLog(playedState, `O efeito de ${card.name} ainda nao foi implementado.`);
 }
 
 function playCardFromHand(gameState: GameState, action: Extract<GameAction, { type: "PLAY_CARD_FROM_HAND" }>) {
@@ -154,7 +187,7 @@ function playCardFromHand(gameState: GameState, action: Extract<GameAction, { ty
   const card = findCardInHand(playerState, action.cardInstanceId);
 
   if (!card) {
-    return withLog(gameState, "Essa carta não está na mão do jogador.");
+    return withLog(gameState, "Essa carta nao esta na mao do jogador.");
   }
 
   if (card.type === "character") {
@@ -169,10 +202,18 @@ function playCardFromHand(gameState: GameState, action: Extract<GameAction, { ty
     return playEvent(gameState, action.player, playerState, card);
   }
 
-  return withLog(gameState, `${card.name} não pode ser jogada da mão agora.`);
+  return withLog(gameState, `${card.name} nao pode ser jogada da mao agora.`);
 }
 
 export function gameReducer(gameState: GameState, action: GameAction): GameState {
+  if (
+    gameState.pendingEffect &&
+    action.type !== "SELECT_EFFECT_TARGET" &&
+    action.type !== "CANCEL_PENDING_EFFECT"
+  ) {
+    return withLog(gameState, "Resolva o efeito pendente antes de continuar.");
+  }
+
   if (
     gameState.pendingLeaderDamage &&
     !gameState.pendingLifeTrigger &&
@@ -183,13 +224,19 @@ export function gameReducer(gameState: GameState, action: GameAction): GameState
   }
 
   switch (action.type) {
+    case "ACTIVATE_CARD_EFFECT":
+      return activateCardEffect(gameState, action.player, action.source, action.timing, action.modeId);
+    case "SELECT_EFFECT_TARGET":
+      return selectEffectTarget(gameState, action.player, action.target, action.modeId);
+    case "CANCEL_PENDING_EFFECT":
+      return cancelPendingEffect(gameState, action.player);
     case "ADVANCE_PHASE":
       if (gameState.pendingLifeTrigger) {
         return withLog(gameState, "Resolva o Trigger pendente antes de continuar.");
       }
 
       if (gameState.pendingBattle) {
-        return withLog(gameState, "Resolva a batalha atual antes de avançar a fase.");
+        return withLog(gameState, "Resolva a batalha atual antes de avancar a fase.");
       }
 
       return advancePhase(gameState);

@@ -1,4 +1,6 @@
 import { getEffectivePower } from "../engine/power";
+import type { CardRef } from "../engine/effects/effectTypes";
+import { cardRefEquals } from "../engine/effects/effectHelpers";
 import type { AttackSource, AttackTarget, AttachDonTarget, CardInstance, PlayerId, PlayerState } from "../engine/types";
 import { BoardZone } from "./BoardZone";
 import { CardView } from "./CardView";
@@ -17,6 +19,8 @@ type PlayerBoardProps = {
   onCharacterSlotClick?: (slotIndex: number) => void;
   onCostDonClick?: (donInstanceId: string) => void;
   blockerCandidateSlotIndexes?: number[];
+  effectTargetRefs?: CardRef[];
+  onEffectTargetClick?: (target: CardRef) => void;
   selectedAttacker?: AttackSource;
 };
 
@@ -39,12 +43,15 @@ export function PlayerBoard({
   onCharacterSlotClick,
   onCostDonClick,
   blockerCandidateSlotIndexes = [],
+  effectTargetRefs = [],
+  onEffectTargetClick,
   selectedAttacker,
 }: PlayerBoardProps) {
   const canChooseAttachTarget = Boolean(selectedDonId && onAttachTargetClick);
   const canChooseAttackTarget = Boolean(onAttackTargetClick);
   const canChooseAttacker = Boolean(onAttackerClick);
   const canClickCostDon = Boolean(onCostDonClick);
+  const canChooseEffectTarget = Boolean(onEffectTargetClick);
 
   function isSelectedAttacker(source: AttackSource) {
     return (
@@ -60,6 +67,10 @@ export function PlayerBoard({
 
   function isBlockerCandidate(slotIndex: number) {
     return blockerCandidateSlotIndexes.includes(slotIndex);
+  }
+
+  function isEffectTarget(ref: CardRef) {
+    return canChooseEffectTarget && effectTargetRefs.some((targetRef) => cardRefEquals(targetRef, ref));
   }
 
   return (
@@ -78,16 +89,24 @@ export function PlayerBoard({
         </BoardZone>
 
         <BoardZone title="Leader">
+          {(() => {
+            const leaderRef: CardRef = { zone: "leader", player: playerId };
+            const leaderIsEffectTarget = isEffectTarget(leaderRef);
+
+            return (
           <CardView
             attachTarget={canChooseAttachTarget}
             attackTarget={canChooseAttackTarget}
             attackerCandidate={canBeAttacker(playerState.leader)}
             card={playerState.leader}
             effectivePower={getEffectivePower(playerState.leader, isTurnPlayer)}
+            effectTarget={leaderIsEffectTarget}
             selectedAttacker={isSelectedAttacker({ type: "leader" })}
             onHover={onCardHover}
             onClick={
-              canChooseAttachTarget
+              leaderIsEffectTarget
+                ? () => onEffectTargetClick?.(leaderRef)
+                : canChooseAttachTarget
                 ? () => onAttachTargetClick?.({ type: "leader" })
                 : canChooseAttackTarget
                   ? () => onAttackTargetClick?.({ type: "leader" })
@@ -96,10 +115,24 @@ export function PlayerBoard({
                     : undefined
             }
           />
+            );
+          })()}
         </BoardZone>
 
         <BoardZone title="Stage">
-          <CardView card={playerState.stage} onHover={onCardHover} />
+          {(() => {
+            const stageRef: CardRef = { zone: "stage", player: playerId };
+            const stageIsEffectTarget = Boolean(playerState.stage && isEffectTarget(stageRef));
+
+            return (
+              <CardView
+                card={playerState.stage}
+                effectTarget={stageIsEffectTarget}
+                onHover={onCardHover}
+                onClick={stageIsEffectTarget ? () => onEffectTargetClick?.(stageRef) : undefined}
+              />
+            );
+          })()}
         </BoardZone>
 
         <BoardZone title="Deck" count={playerState.deck.length}>
@@ -118,6 +151,8 @@ export function PlayerBoard({
       <BoardZone title="Character Area" className="wide-zone">
         <div className="character-slots">
           {playerState.characterArea.map((card, index) => {
+            const characterRef: CardRef = { zone: "character", player: playerId, slotIndex: index };
+            const characterIsEffectTarget = Boolean(card && isEffectTarget(characterRef));
             const slotContent = (
               <>
                 <CardView
@@ -127,10 +162,13 @@ export function PlayerBoard({
                   blockerCandidate={isBlockerCandidate(index)}
                   card={card}
                   effectivePower={card ? getEffectivePower(card, isTurnPlayer) : undefined}
+                  effectTarget={characterIsEffectTarget}
                   selectedAttacker={isSelectedAttacker({ type: "character", slotIndex: index })}
                   onHover={onCardHover}
                   onClick={
-                    canChooseAttachTarget && card
+                    characterIsEffectTarget
+                      ? () => onEffectTargetClick?.(characterRef)
+                      : canChooseAttachTarget && card
                       ? () => onAttachTargetClick?.({ type: "character", slotIndex: index })
                       : canChooseAttackTarget && card && !card.active
                         ? () => onAttackTargetClick?.({ type: "character", slotIndex: index })

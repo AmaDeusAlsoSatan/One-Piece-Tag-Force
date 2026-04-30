@@ -40,6 +40,10 @@ export function validateMainPhaseAction(gameState: GameState, player: PlayerId):
     return { valid: false, message: "Apenas o jogador do turno pode jogar cartas." };
   }
 
+  if (gameState.pendingEffect) {
+    return { valid: false, message: "Resolva o efeito pendente antes de continuar." };
+  }
+
   if (gameState.pendingBattle) {
     return { valid: false, message: "Resolva a batalha atual antes de continuar." };
   }

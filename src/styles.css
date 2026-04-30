@@ -541,6 +541,22 @@ button.counter-candidate:hover {
   border-color: #fef08a;
 }
 
+.effect-target {
+  border-color: #34d399;
+  box-shadow:
+    0 0 0 2px rgba(52, 211, 153, 0.28),
+    0 0 22px rgba(52, 211, 153, 0.58),
+    0 8px 20px rgba(0, 0, 0, 0.24);
+}
+
+button.effect-target:hover {
+  border-color: #fef08a;
+  box-shadow:
+    0 0 0 2px rgba(250, 204, 21, 0.3),
+    0 0 24px rgba(52, 211, 153, 0.7),
+    0 8px 20px rgba(0, 0, 0, 0.24);
+}
+
 .hand-view {
   min-height: 138px;
   display: flex;
@@ -650,6 +666,60 @@ button.counter-candidate:hover {
   border-radius: 8px;
   background: rgba(52, 18, 28, 0.74);
   box-shadow: 0 0 20px rgba(255, 79, 79, 0.14);
+}
+
+.pending-effect-panel {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(52, 211, 153, 0.48);
+  border-radius: 8px;
+  background: rgba(13, 50, 38, 0.74);
+  box-shadow: 0 0 20px rgba(52, 211, 153, 0.16);
+}
+
+.pending-effect-panel span {
+  color: rgba(167, 243, 208, 0.9);
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.pending-effect-panel small {
+  color: rgba(246, 248, 255, 0.78);
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.effect-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.effect-button,
+.effect-activate-button {
+  min-height: 38px;
+  border: 1px solid rgba(52, 211, 153, 0.38);
+  border-radius: 8px;
+  color: #eafff5;
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.effect-button:hover,
+.effect-activate-button:hover {
+  border-color: rgba(167, 243, 208, 0.86);
+}
+
+.effect-activate-button {
+  color: #082018;
+  background: #6ee7b7;
+}
+
+.cancel-effect-button {
+  border-color: rgba(255, 255, 255, 0.18);
+  color: rgba(246, 248, 255, 0.82);
 }
 
 .trigger-panel {
