@@ -1,7 +1,9 @@
 import { getEffectivePower } from "./power";
 import { payCost } from "./payCost";
 import { processNextLeaderDamage } from "./damageFlow";
+import type { CardRef } from "./effects/effectTypes";
 import { koCharacter } from "./effects/effectHelpers";
+import { triggerCardEffects } from "./effects/resolvePendingEffect";
 import type { AttackSource, AttackTarget, CardInstance, GameState, PlayerId, PlayerState } from "./types";
 import {
   getOpponent,
@@ -109,7 +111,7 @@ export function declareAttack(
   const attackerPower = getEffectivePower(attacker, true);
   const targetPower = getEffectivePower(targetCard, false);
 
-  return withLog(
+  const attackState = withLog(
     {
       ...updatePlayer(gameState, player, restedPlayer),
       pendingBattle: {
@@ -127,6 +129,13 @@ export function declareAttack(
     },
     `${getPlayerLabel(player)} declarou ataque com ${attacker.name} em ${targetCard.name}.`,
   );
+
+  const sourceRef: CardRef =
+    source.type === "leader"
+      ? { zone: "leader", player }
+      : { zone: "character", player, slotIndex: source.slotIndex };
+
+  return triggerCardEffects(attackState, sourceRef, player, "whenAttacking");
 }
 
 export function useBlocker(gameState: GameState, player: PlayerId, blockerSlotIndex: number): GameState {

@@ -9,6 +9,7 @@ function createPendingEffectFromHandler(
   source: CardRef,
   timing: EffectTiming,
   modeId?: string,
+  logIfUnavailable = true,
 ): GameState {
   const sourceCard = getCardByRef(gameState, source);
 
@@ -28,7 +29,7 @@ function createPendingEffectFromHandler(
   );
 
   if (!handler) {
-    return withLog(gameState, `${sourceCard.name} nao tem efeito disponivel agora.`);
+    return logIfUnavailable ? withLog(gameState, `${sourceCard.name} nao tem efeito disponivel agora.`) : gameState;
   }
 
   const ctx = {
@@ -66,7 +67,7 @@ export function triggerCardEffects(
     return gameState;
   }
 
-  return createPendingEffectFromHandler(gameState, controller, source, timing);
+  return createPendingEffectFromHandler(gameState, controller, source, timing, undefined, false);
 }
 
 export function activateCardEffect(

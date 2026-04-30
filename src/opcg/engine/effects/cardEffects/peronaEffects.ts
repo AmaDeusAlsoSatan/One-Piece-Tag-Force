@@ -30,7 +30,9 @@ export const peronaLeaderEffects: CardEffectHandler[] = [
     createPendingEffect: ({ gameState, source, sourceCard, controller, modeId }): PendingEffect => {
       const validTargets =
         modeId === "rest-cost-4"
-          ? getCharacterTargetsByEffectiveCost(gameState, getOpponent(controller), 4).map(({ ref }) => ref)
+          ? getCharacterTargetsByEffectiveCost(gameState, getOpponent(controller), 4)
+              .filter(({ card }) => card.active)
+              .map(({ ref }) => ref)
           : modeId === "cost-minus-1"
             ? getOpponentCharacters(gameState, controller).map(({ ref }) => ref)
             : [];

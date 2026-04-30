@@ -8,6 +8,7 @@ import type {
   PlayerId,
 } from "../engine/types";
 import { createInitialGameState } from "../engine/createInitialGameState";
+import { logEffectCoverageForTutorialDecks } from "../engine/effects/effectCoverage";
 import type { CardRef } from "../engine/effects/effectTypes";
 import { hasCardEffect } from "../engine/effects/effectRegistry";
 import { gameReducer } from "../engine/gameReducer";
@@ -63,6 +64,12 @@ export function BattleScreen() {
     setSelectedDonId(undefined);
     setSelectedAttacker(undefined);
   }, [controlledPlayer, gameState.phase, gameState.pendingEffect?.effectId, gameState.pendingEffect?.selectedModeId]);
+
+  useEffect(() => {
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+      logEffectCoverageForTutorialDecks();
+    }
+  }, []);
 
   function getCounterCandidateIds(playerId: PlayerId) {
     if (
@@ -263,6 +270,18 @@ export function BattleScreen() {
     });
   }
 
+  function handleActivateCardEffect(source: CardRef) {
+    setSelectedHandCardId(undefined);
+    setSelectedDonId(undefined);
+    setSelectedAttacker(undefined);
+    dispatch({
+      type: "ACTIVATE_CARD_EFFECT",
+      player: controlledPlayer,
+      source,
+      timing: "activateMain",
+    });
+  }
+
   const canActivateLeaderEffect =
     canUseMainPhaseActions(controlledPlayer) &&
     hasCardEffect(gameState.players[controlledPlayer].leader.cardId, "activateMain");
@@ -292,6 +311,11 @@ export function BattleScreen() {
         }
         onCostDonClick={isControlledBoard && canUseBoardMainActions ? handleCostDonClick : undefined}
         onEffectTargetClick={gameState.pendingEffect ? handleEffectTargetClick : undefined}
+        onActivateEffectClick={
+          isControlledBoard && canUseBoardMainActions && !selectedHandCard && !selectedDonId && !selectedAttacker
+            ? handleActivateCardEffect
+            : undefined
+        }
         playerId={playerId}
         playerState={gameState.players[playerId]}
         selectedAttacker={isControlledBoard ? selectedAttacker : undefined}

@@ -1,6 +1,7 @@
 import { getEffectivePower } from "../engine/power";
 import type { CardRef } from "../engine/effects/effectTypes";
 import { cardRefEquals } from "../engine/effects/effectHelpers";
+import { hasCardEffect } from "../engine/effects/effectRegistry";
 import type { AttackSource, AttackTarget, AttachDonTarget, CardInstance, PlayerId, PlayerState } from "../engine/types";
 import { BoardZone } from "./BoardZone";
 import { CardView } from "./CardView";
@@ -21,6 +22,7 @@ type PlayerBoardProps = {
   blockerCandidateSlotIndexes?: number[];
   effectTargetRefs?: CardRef[];
   onEffectTargetClick?: (target: CardRef) => void;
+  onActivateEffectClick?: (source: CardRef) => void;
   selectedAttacker?: AttackSource;
 };
 
@@ -45,6 +47,7 @@ export function PlayerBoard({
   blockerCandidateSlotIndexes = [],
   effectTargetRefs = [],
   onEffectTargetClick,
+  onActivateEffectClick,
   selectedAttacker,
 }: PlayerBoardProps) {
   const canChooseAttachTarget = Boolean(selectedDonId && onAttachTargetClick);
@@ -52,6 +55,7 @@ export function PlayerBoard({
   const canChooseAttacker = Boolean(onAttackerClick);
   const canClickCostDon = Boolean(onCostDonClick);
   const canChooseEffectTarget = Boolean(onEffectTargetClick);
+  const canActivateCardEffect = Boolean(onActivateEffectClick);
 
   function isSelectedAttacker(source: AttackSource) {
     return (
@@ -71,6 +75,10 @@ export function PlayerBoard({
 
   function isEffectTarget(ref: CardRef) {
     return canChooseEffectTarget && effectTargetRefs.some((targetRef) => cardRefEquals(targetRef, ref));
+  }
+
+  function isEffectCandidate(card: CardInstance | null | undefined) {
+    return canActivateCardEffect && Boolean(card?.active && hasCardEffect(card.cardId, "activateMain"));
   }
 
   return (
@@ -153,6 +161,7 @@ export function PlayerBoard({
           {playerState.characterArea.map((card, index) => {
             const characterRef: CardRef = { zone: "character", player: playerId, slotIndex: index };
             const characterIsEffectTarget = Boolean(card && isEffectTarget(characterRef));
+            const characterIsEffectCandidate = isEffectCandidate(card);
             const slotContent = (
               <>
                 <CardView
@@ -162,6 +171,7 @@ export function PlayerBoard({
                   blockerCandidate={isBlockerCandidate(index)}
                   card={card}
                   effectivePower={card ? getEffectivePower(card, isTurnPlayer) : undefined}
+                  effectCandidate={characterIsEffectCandidate}
                   effectTarget={characterIsEffectTarget}
                   selectedAttacker={isSelectedAttacker({ type: "character", slotIndex: index })}
                   onHover={onCardHover}
@@ -174,6 +184,8 @@ export function PlayerBoard({
                         ? () => onAttackTargetClick?.({ type: "character", slotIndex: index })
                         : isBlockerCandidate(index)
                           ? () => onBlockerClick?.(index)
+                        : characterIsEffectCandidate
+                          ? () => onActivateEffectClick?.(characterRef)
                         : canBeAttacker(card)
                           ? () => onAttackerClick?.({ type: "character", slotIndex: index })
                           : undefined

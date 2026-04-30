@@ -14,6 +14,7 @@ type CardViewProps = {
   attackTarget?: boolean;
   blockerCandidate?: boolean;
   counterCandidate?: boolean;
+  effectCandidate?: boolean;
   effectTarget?: boolean;
   onHover?: (card?: CardInstance) => void;
   onClick?: (card: CardInstance) => void;
@@ -66,6 +67,7 @@ export function CardView({
   attackTarget = false,
   blockerCandidate = false,
   counterCandidate = false,
+  effectCandidate = false,
   effectTarget = false,
   onHover,
   onClick,
@@ -96,6 +98,7 @@ export function CardView({
     attackTarget ? "attack-target" : "",
     blockerCandidate ? "blocker-candidate" : "",
     counterCandidate ? "counter-candidate" : "",
+    effectCandidate ? "effect-candidate" : "",
     effectTarget ? "effect-target" : "",
   ].join(" ");
   const displayedPower = effectivePower ?? card.power;

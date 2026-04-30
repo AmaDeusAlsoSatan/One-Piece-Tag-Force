@@ -121,6 +121,113 @@ export function getOpponentCharacters(
   return getCharacters(gameState, getOpponent(controller));
 }
 
+function resetCardForHiddenDeck(card: CardInstance): CardInstance {
+  return {
+    ...card,
+    active: true,
+    faceUp: false,
+    attachedDon: [],
+    attachedDonIds: [],
+    tempCostModifier: 0,
+    tempPowerModifier: 0,
+  };
+}
+
+function resetCardForTrash(card: CardInstance): CardInstance {
+  return {
+    ...card,
+    active: true,
+    faceUp: true,
+    attachedDon: [],
+    attachedDonIds: [],
+    tempCostModifier: 0,
+    tempPowerModifier: 0,
+  };
+}
+
+export function cardHasTraitIncluding(card: CardInstance, text: string): boolean {
+  return card.traits?.some((trait) => trait.includes(text)) ?? false;
+}
+
+export function trashTopDeck(gameState: GameState, player: PlayerId, amount: number): GameState {
+  const playerState = gameState.players[player];
+
+  if (amount <= 0 || playerState.deck.length < amount) {
+    return gameState;
+  }
+
+  const trashedCards = playerState.deck.slice(0, amount).map(resetCardForTrash);
+  const deck = playerState.deck.slice(amount);
+
+  return updatePlayer(gameState, player, {
+    ...playerState,
+    deck,
+    trash: [...trashedCards, ...playerState.trash],
+  });
+}
+
+export function returnCardsFromTrashToBottomDeck(
+  gameState: GameState,
+  player: PlayerId,
+  cardInstanceIds: string[],
+): GameState {
+  if (cardInstanceIds.length === 0) {
+    return gameState;
+  }
+
+  const playerState = gameState.players[player];
+  const idSet = new Set(cardInstanceIds);
+  const movedCards = playerState.trash.filter((card) => idSet.has(card.instanceId));
+  const trash = playerState.trash.filter((card) => !idSet.has(card.instanceId));
+
+  return updatePlayer(gameState, player, {
+    ...playerState,
+    trash,
+    deck: [...playerState.deck, ...movedCards.map(resetCardForHiddenDeck)],
+  });
+}
+
+export function returnFirstTrashCardsToBottomDeck(
+  gameState: GameState,
+  player: PlayerId,
+  amount: number,
+  predicate: (card: CardInstance) => boolean = () => true,
+): { gameState: GameState; movedCards: CardInstance[] } {
+  const playerState = gameState.players[player];
+  const movedCards = playerState.trash.filter(predicate).slice(0, amount);
+
+  if (movedCards.length < amount) {
+    return { gameState, movedCards: [] };
+  }
+
+  return {
+    gameState: returnCardsFromTrashToBottomDeck(
+      gameState,
+      player,
+      movedCards.map((card) => card.instanceId),
+    ),
+    movedCards,
+  };
+}
+
+export function moveFirstHandCardToTrash(gameState: GameState, player: PlayerId): { gameState: GameState; card?: CardInstance } {
+  const playerState = gameState.players[player];
+  const card = playerState.hand[0];
+
+  if (!card) {
+    return { gameState };
+  }
+
+  return {
+    card,
+    gameState: updatePlayer(gameState, player, {
+      ...playerState,
+      hand: playerState.hand.slice(1),
+      trash: [resetCardForTrash(card), ...playerState.trash],
+    }),
+  };
+}
+
 export function applyCostModifier(gameState: GameState, targetRef: CardRef, amount: number): GameState {
   return updateCardByRef(gameState, targetRef, (card) => ({
     ...card,

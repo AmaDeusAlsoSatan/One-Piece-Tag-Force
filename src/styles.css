@@ -541,6 +541,18 @@ button.counter-candidate:hover {
   border-color: #fef08a;
 }
 
+.effect-candidate {
+  border-color: #5eead4;
+  box-shadow:
+    0 0 0 2px rgba(94, 234, 212, 0.22),
+    0 0 18px rgba(94, 234, 212, 0.45),
+    0 8px 20px rgba(0, 0, 0, 0.24);
+}
+
+button.effect-candidate:hover {
+  border-color: #fef08a;
+}
+
 .effect-target {
   border-color: #34d399;
   box-shadow:
